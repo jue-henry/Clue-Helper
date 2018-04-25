@@ -4,6 +4,9 @@ clue :- write("Number of players? "), read(Num),
     write("List Weapons (lowercase only) \n"), weapons(6), 
     write("List Suspect Names (lowercase only) \n"),suspects(6), 
     write("List Room Names (lowercase only) \n"),rooms(9),
+	bagof(X,weapon(X),A), assert(currWeapons(A)),
+	bagof(Y,suspect(Y),B), assert(currSuspects(B)),
+	bagof(Z,room(Z),C), assert(currRooms(C)),
     playerCards, play.
 
 %prompt for player names
@@ -27,7 +30,8 @@ rooms(Num) :- write("Room Name: "), read(Room), assert(room(Room)),
                 NewNum is Num - 1, rooms(NewNum).
 
 %console for actions
-play :- checkWin, write("Please choose a number :\n 1. View notebook \n 2. Record your move \n"), 
+play :- checkWin, 
+		write("Please choose a number :\n 1. View notebook \n 2. Record your move \n"), 
         write(" 3. Record other players move \n 4. Give suggestion \n 5. Quit\n"), 
         read(X), choice(X).
 
@@ -46,8 +50,8 @@ yourMove :- write("What did you ask to see from "), player(X,2), write(X), write
             read(Answer), have(Answer,2).
 
 %when the player you asked has one of the three cards
-have(yes, _PlayerNum) :- write("What card was it?"), read(Card), valid(Card), 
-                    assert(not(Card)), play.
+have(yes, PlayerNum) :- write("What card was it?"), read(Card), valid(Card,Type), 
+                    assert(not(Card,Type,PlayerNum)), play.
 
 %when the player you asked does not have one of the three cards
 have(no, PlayerNum) :- Next is PlayerNum+1, (player(X, Next) -> write("Does "), write(X), 
@@ -74,9 +78,9 @@ inputCards([H|T]) :- suspect(H),assert(not(H, suspect, 1)),inputCards(T).
 inputCards([H|T]) :- room(H),assert(not(H, room, 1)),inputCards(T).
 
 %test if an inputted card is valid
-valid(Card) :- weapon(Card).
-valid(Card) :- suspect(Card).
-valid(Card) :- room(Card).
+valid(Card,weapons) :- weapon(Card).
+valid(Card,suspect) :- suspect(Card).
+valid(Card,room) :- room(Card).
 
 %prints the contents of the notebook
 printNotebook :-% writes all the names of the players 
@@ -91,4 +95,7 @@ printPad(Card, [], Str) :- string_concat(Card, "\t", NewCard), string_concat(New
 printPad(Card, [H|T], Str) :- (not(Card,_,H) -> string_concat(Str, "\tX\t", NewStr); 
                 string_concat(Str, "\t\t", NewStr)), printPad(Card,T,NewStr). 
 
-checkWin:- findall()
+checkWin:- 	bagof(Y1,weapon(Y1),A1),findall(X1,not(X1,weapon,_),Z1),length(Z1,5),subtract(A1,Z1,[New1]),assert(right(New1)),
+			bagof(Y2,room(Y2),A2),findall(X2,not(X2,room,_),Z2),length(Z2,8),subtract(A2,Z2,[New2]),assert(right(New2)),
+			bagof(Y3,suspect(Y3),A3),findall(X3,not(X3,suspect,_),Z3),length(Z3,5),subtract(A3,Z3,[New3]),assert(right(New3)),
+			bagof(A,right(A),Z),format("SUGGEST THE FOLLOWING: ~w \t~w \t~w",Z).
