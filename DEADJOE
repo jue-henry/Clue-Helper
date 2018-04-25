@@ -1,0 +1,26 @@
+
+*** These modified files were found in JOE when it aborted on Tue Apr 24 18:29:52 2018
+*** JOE was aborted because the terminal closed
+
+*** File '(Unnamed)'
+/home/va058426/ecs140b/Clue-Helper/.git/COMMIT_EDITMSG
+
+*** File '/home/va058426/ecs140b/Clue-Helper/.git/COMMIT_EDITMSG'
+Can now check for win
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# Committer: Va Phu Vong <va058426@pc19.cs.ucdavis.edu>
+#
+# On branch master
+# Your branch is up-to-date with 'origin/master'.
+#
+# Changes to be committed:
+#	modified:   clue.pl
+#
+
+*** File '* Startup Log *'
+Processing '/etc/joe/editorrc'...
+Processing '/etc/joe/ftyperc'...
+Finished processing /etc/joe/ftyperc
+Finished processing /etc/joe/editorrc
