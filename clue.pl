@@ -27,8 +27,8 @@ rooms(Num) :- write("Room Name: "), read(Room), assert(room(Room)),
                 NewNum is Num - 1, rooms(NewNum).
 
 %console for actions
-play :- write("Please choose a number :\n 1. View notebook \n 2. Record your move \n"), 
-        write(" 3. Record other players move \n 4. Give suggestion \n"), 
+play :- checkWin, write("Please choose a number :\n 1. View notebook \n 2. Record your move \n"), 
+        write(" 3. Record other players move \n 4. Give suggestion \n 5. Quit\n"), 
         read(X), choice(X).
 
 %possible choices
@@ -37,6 +37,7 @@ choice(2) :- yourMove, play.
 choice(3) :- write("Who's turn is it?"), read(X), player(X, PlayerNum), 
             otherMove(PlayerNum), play.
 choice(4) :- suggest, play.
+choice(5).
 
 %record your move and recording it
 yourMove :- write("What did you ask to see from "), player(X,2), write(X), write("?\n"),
@@ -65,12 +66,29 @@ playerCards :- write("What cards do you hold? List cards within [] and separated
                 read(X), inputCards(X).
 
 %checks if card is valid and adds it to our current database
-inputCards([H|T]) :- valid(H),assert(not(H)),inputCards(T).
-inputCards([H]) :- valid(H), assert(not(H)).
+inputCards([H]) :- weapon(H), assert(not(H, weapon, 1)).
+inputCards([H]) :- suspect(H), assert(not(H, suspect, 1)).
+inputCards([H]) :- room(H), assert(not(H, room, 1)).
+inputCards([H|T]) :- weapon(H),assert(not(H, weapon, 1)),inputCards(T).
+inputCards([H|T]) :- suspect(H),assert(not(H, suspect, 1)),inputCards(T).
+inputCards([H|T]) :- room(H),assert(not(H, room, 1)),inputCards(T).
 
 %test if an inputted card is valid
 valid(Card) :- weapon(Card).
 valid(Card) :- suspect(Card).
 valid(Card) :- room(Card).
 
-printNotebook :- .
+%prints the contents of the notebook
+printNotebook :-% writes all the names of the players 
+                write("\t\t"),forall(player(X,_Y), format("~w \t\t", X)), write("\n"),
+                findall(X, player(_,X), Y),
+                forall(weapon(A), printPad(A,Y,'')), write("\n"),
+                forall(suspect(B), printPad(B,Y,'')), write("\n"),
+                forall(room(C), printPad(C,Y,'')), write("\n").
+
+%builds string to represent which player has what card
+printPad(Card, [], Str) :- string_concat(Card, "\t", NewCard), string_concat(NewCard, Str, NewStr), format("~w\n", NewStr).
+printPad(Card, [H|T], Str) :- (not(Card,_,H) -> string_concat(Str, "\tX\t", NewStr); 
+                string_concat(Str, "\t\t", NewStr)), printPad(Card,T,NewStr). 
+
+checkWin:- findall()
