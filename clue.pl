@@ -50,16 +50,16 @@ have(yes, _PlayerNum) :- write("What card was it?"), read(Card), valid(Card),
                     assert(not(Card)), play.
 
 %when the player you asked does not have one of the three cards
-have(no, PlayerNum) :- Next is PlayerNum+1, (player(X, Next) -> write("Does "), write(X), 
-                        write(" have it?"), read(NewAnswer), have(NewAnswer,Next); 
-                        write("No one has these three cards. \n\n"), play). 
+have(no, PlayerNum) :-  Next is PlayerNum+1, (player(X, Next) -> format("Does ~w have it? ", X),
+                        read(NewAnswer), have(NewAnswer,Next); 
+                        write("No one has these three cards. That should be the winning accusation.\n\n")). 
 
 %prompt for other player's move and record
 otherMove(PlayerNum) :- player(X,PlayerNum), Next is PlayerNum+1, player(Y, Next),
-                write("What does "),write(X), write(" ask "), write(Y), write("?\n"),
+                format("What does ~w ask ~w?\n", [X,Y]),
                 write("Room? "), read(R), write("Weapon? "), read(W), write("Suspect? "), 
                 read(S), room(R), weapon(W), suspect(S),    
-                write("Does "), write(X), write(" show "), write(Y), write(" anything?").
+                format("Does ~w show ~w anything?", [X,Y]).
 
 %prompt players for their cards
 playerCards :- write("What cards do you hold? List cards within [] and separated by commas.\n"),
@@ -86,9 +86,13 @@ printNotebook :-% writes all the names of the players
                 forall(suspect(B), printPad(B,Y,'')), write("\n"),
                 forall(room(C), printPad(C,Y,'')), write("\n").
 
+%prints out the string representing who has what card
+printPad(Card, [], Str) :- string_concat(Card, "\t", NewCard), 
+                        string_concat(NewCard, Str, NewStr), format("~w\n", NewStr).
+
 %builds string to represent which player has what card
-printPad(Card, [], Str) :- string_concat(Card, "\t", NewCard), string_concat(NewCard, Str, NewStr), format("~w\n", NewStr).
 printPad(Card, [H|T], Str) :- (not(Card,_,H) -> string_concat(Str, "\tX\t", NewStr); 
                 string_concat(Str, "\t\t", NewStr)), printPad(Card,T,NewStr). 
 
-checkWin:- findall()
+checkWin:- weapon(A), not(A,weapon,_), suspect(B), not(B,suspect,_), 
+            room(C), not(C,room,_),
