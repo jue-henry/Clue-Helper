@@ -113,10 +113,10 @@ crossExtras(Card, Type, End, _Current) :- crossExtras(Card,Type,End,1).
 						
 %prompt for other player's move and record
 otherMove(PlayerNum) :- player(X,PlayerNum), Next is PlayerNum+1, player(Y, Next),
-                write("What does "),write(X), write(" ask "), write(Y), write("?\n"),
+                format("What does ~w ask ~w?\n", [X,Y]),
                 write("Room? "), read(R), write("Weapon? "), read(W), write("Suspect? "), 
                 read(S), room(R), weapon(W), suspect(S),    
-                write("Does "), write(X), write(" show "), write(Y), write(" anything?").
+                format("Does ~w show ~w anything?", [X,Y]).
 
 doesNotHave(_Card, _Type, Player):- not(player(_,Player)).
 doesNotHave(Card, Type, Player):- player(_,Player), assert(doesNotOwn(Card, Type, Player)), NewPlayer is Player + 1,
@@ -134,6 +134,10 @@ printNotebook :-% writes all the names of the players
                 forall(weapon(A), printPad(A,PlayerList,'')), write("\n"),
                 forall(suspect(B), printPad(B,PlayerList,'')), write("\n"),
                 forall(room(C), printPad(C,PlayerList,'')), write("\n").
+
+%prints out the string representing who has what card
+printPad(Card, [], Str) :- string_concat(Card, "\t", NewCard), 
+                        string_concat(NewCard, Str, NewStr), format("~w\n", NewStr).
 
 %builds string to represent which player has what card
 printPad(Card, [], Str) :- string_concat(Card, "\t", NewCard), string_concat(NewCard, Str, NewStr), format("~w\n", NewStr).
