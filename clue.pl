@@ -1,6 +1,5 @@
 %start game setup
-clue :- retractall(weapon(_)), retractall(room(_)), retractall(player(_,_)), 
-		retractall(suspect(_)), retractall(not(_,_,_)), retractall(doesNotOwn(_,_, _)),
+clue :- reset,
         write("All input must begin with lowercase letters and end with a period.\n"),
 		write("Number of players (3-6)? "), read(Num), validNum(Num),
 		write("List Player Names (lowercase only) \n"), read(Players),players(Players,1), 
@@ -20,6 +19,10 @@ clue :- retractall(weapon(_)), retractall(room(_)), retractall(player(_,_)),
 		bagof(Y,suspect(Y),B), assert(currSuspects(B)),
 		bagof(Z,room(Z),C), assert(currRooms(C)),
 		playerCards, play.
+		
+reset :- retractall(weapon(_)), retractall(room(_)), retractall(player(_,_)), retractall(right(_)),
+		retractall(suspect(_)), retractall(not(_,_,_)), retractall(doesNotOwn(_,_, _)),
+		retractall(unknownRooms(_)),retractall(unknownSuspects(_)),retractall(unknownWeapons(_)).
 
 %checks for valid number of players
 validNum(3).
@@ -59,7 +62,7 @@ inputCards(_) :- write("One of your inputted cards is incorrect. Try Again. \n")
 
 %console for actions
 play :- (checkWin -> 
-			bagof(A,right(A),Z),format("SUGGEST THE FOLLOWING: ~w \t~w \t~w",Z);true),
+			bagof(A,right(A),Z),format("SUGGEST THE FOLLOWING: ~w \t~w \t~w\n",Z);true),
 		write("Please choose a number :\n 1. View notebook \n 2. Record your move \n"), 
         write(" 3. Record other players move \n 4. Give suggestion \n 5. Quit\n"), 
         read(X), choice(X).
@@ -69,8 +72,16 @@ choice(1) :- printNotebook, play.
 choice(2) :- yourMove, play.
 choice(3) :- write("Who's turn is it?"), read(X), player(X, PlayerNum), 
              otherMove(PlayerNum), play.
-choice(4).
+choice(4) :- suggestions, play.
 choice(5) :- abort.
+
+% give a suggestion
+suggestions :- getSuspect(Suspect), getWeapon(Weapon), getRoom(Room),
+			format("\nYou should suggest ~w in the ~w with the ~w.\n\n",[Suspect,Room,Weapon]), sleep(2).
+
+getSuspect(Suspect) :- unknownSuspects([Suspect|_Etc]).
+getWeapon(Weapon) :- unknownWeapons([Weapon|_Etc]).
+getRoom(Room) :- unknownRooms([Room|_Etc]).
 
 %record your move and recording it
 yourMove :- write("What did you ask to see from "), player(X,2), write(X), write("?\n"),
@@ -110,13 +121,13 @@ doesNotHave(Card, Type, Player):- player(_,Player), assert(doesNotOwn(Card, Type
 								  doesNotHave(Card,Type,NewPlayer).
 
 %test if an inputted card is valid
-valid(Card,weapons) :- weapon(Card).
+valid(Card,weapon) :- weapon(Card).
 valid(Card,suspect) :- suspect(Card).
 valid(Card,room) :- room(Card).
 
 %prints the contents of the notebook
 printNotebook :-% writes all the names of the players 
-                write("\t\t"),forall(player(X,_Y), format("~w \t", X)), write("\n"),
+                write("\t\t"),forall(player(X,_Y), format("~w \t\t", X)), write("\n"),
                 findall(X, player(_,X), PlayerList),
                 forall(weapon(A), printPad(A,PlayerList,'')), write("\n"),
                 forall(suspect(B), printPad(B,PlayerList,'')), write("\n"),
@@ -127,17 +138,22 @@ printPad(Card, [], Str) :- string_concat(Card, "\t", NewCard),
                         string_concat(NewCard, Str, NewStr), format("~w\n", NewStr).
 
 %builds string to represent which player has what card
-printPad(Card, [], Str) :- string_concat(Card, "\t", NewCard), string_concat(NewCard, Str, NewStr), format("~w\n", NewStr).
-printPad(Card, [H|T], Str) :- (not(Card,_,H) -> string_concat(Str, "\tO", NewStr);
-							  (doesNotOwn(Card,_,H)-> string_concat(Str, "\tX", NewStr); 
-							  string_concat(Str, "\t", NewStr))),
+printPad(Card, [], Str) :- string_concat(Card, "\t\t", NewCard), string_concat(NewCard, Str, NewStr), format("~w\n", NewStr).
+printPad(Card, [H|T], Str) :- (not(Card,_,H) -> string_concat(Str, "\tO\t", NewStr);
+							  (doesNotOwn(Card,_,H)-> string_concat(Str, "\tX\t", NewStr); 
+							  string_concat(Str, "\t\t", NewStr))),
 							  printPad(Card,T,NewStr).
 %
 
-%BUG: are there always gonnna be 6 weapons, 9 rooms, etc?
 
 %
 %checks for the if a winning solution has been found
-checkWin:- 	bagof(Y1,weapon(Y1),A1),findall(X1,not(X1,weapon,_),Z1),length(Z1,5),subtract(A1,Z1,[New1]),assert(right(New1)),
-			bagof(Y2,room(Y2),A2),findall(X2,not(X2,room,_),Z2),length(Z2,8),subtract(A2,Z2,[New2]),assert(right(New2)),
-			bagof(Y3,suspect(Y3),A3),findall(X3,not(X3,suspect,_),Z3),length(Z3,5),subtract(A3,Z3,[New3]),assert(right(New3)).
+checkWin:- 	bagof(Y1,weapon(Y1),A1),findall(X1,not(X1,weapon,_),Z1),subtract(A1,Z1,New1),
+			retract(unknownWeapons(_)),assert(unknownWeapons(New1)),
+			bagof(Y2,room(Y2),A2),findall(X2,not(X2,room,_),Z2),subtract(A2,Z2,New2),
+			retract(unknownRooms(_)),assert(unknownRooms(New2)),
+			bagof(Y3,suspect(Y3),A3),findall(X3,not(X3,suspect,_),Z3),subtract(A3,Z3,New3),
+			retract(unknownSuspects(_)),assert(unknownSuspects(New3)),
+			length(New1,1),New1 = [LastWeapon],assert(right(LastWeapon)),
+			length(New2,1),New2 = [LastRoom],assert(right(LastRoom)),
+			length(New3,1), New3 = [LastSus],assert(right(LastSus)).
