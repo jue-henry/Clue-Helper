@@ -14,18 +14,18 @@ clue :- reset,
 			assert(room(dining_room)), assert(room(billiard_room)), assert(room(library)),
 			assert(room(lounge)), assert(room(hall)), assert(room(study)),printNotebook,
             assert(numWeapons(6)), assert(numSuspects(6)), assert(numRooms(9));
-			write("List Weapons (14 Characters max).\nList cards within [] and separated by commas.\n"),
+			write("List Weapons (13 Characters max).\nList cards within [] and separated by commas.\n"),
             read(Weapons), length(Weapons, WepLen), assert(numWeapons(WepLen)), weapons(Weapons), 
-			write("List Suspect Names (14 Characters max).\nList cards within [] and separated by commas. \n"), 
+			write("List Suspect Names (13 Characters max).\nList cards within [] and separated by commas. \n"), 
             read(Suspects), length(Suspects, SusLen), assert(numSuspects(SusLen)), suspects(Suspects), 
-			write("List Room Names (14 Characters max).\nList cards within [] and separated by commas. \n"), 
+			write("List Room Names (13 Characters max).\nList cards within [] and separated by commas. \n"), 
             read(Rooms), length(Rooms, RoomLen), assert(numRooms(RoomLen)), rooms(Rooms)),
 		playerCards, play.
 		
 reset :- retractall(weapon(_)), retractall(room(_)), retractall(player(_,_)), retractall(right(_)),
-		retractall(suspect(_)), retractall(not(_,_,_)), retractall(doesNotOwn(_,_, _)),
-		retractall(unknownRooms(_)),retractall(unknownSuspects(_)),retractall(unknownWeapons(_))
-		retractall(numWeapons(_)), retractall(numSuspects(_)), retractall(numRooms(_)).
+		 retractall(suspect(_)), retractall(not(_,_,_)), retractall(doesNotOwn(_,_, _)),
+		 retractall(unknownRooms(_)),retractall(unknownSuspects(_)),retractall(unknownWeapons(_)),
+		 retractall(numWeapons(_)), retractall(numSuspects(_)), retractall(numRooms(_)).
 
 %checks for valid number of players
 validNum(3).
@@ -73,7 +73,7 @@ play :- (checkWin -> bagof(A,right(A),Z),format("SUGGEST THE FOLLOWING: ~w ~w ~w
 choice(1) :- printNotebook, play.
 choice(2) :- yourMove, play.
 choice(3) :- write("Who's turn is it?"), read(X), player(X, PlayerNum), 
-             otherMove(PlayerNum), play.
+             Next is PlayerNum+1, otherMove(PlayerNum, Next), play.
 choice(4) :- suggestions, play.
 choice(5) :- abort.
 
@@ -111,16 +111,43 @@ crossExtras(Card, Type, End, Current) :- player(_,Current), assert(doesNotOwn(Ca
 crossExtras(Card, Type, End, _Current) :- crossExtras(Card,Type,End,1).
 						
 %prompt for other player's move and record
-otherMove(PlayerNum) :- player(X,PlayerNum), Next is PlayerNum+1, player(Y, Next),
-                format("What does ~w ask ~w?\n", [X,Y]),
-                write("Room? "), read(R), write("Weapon? "), read(W), write("Suspect? "), 
-                read(S), room(R), weapon(W), suspect(S),    
-                format("Does ~w show ~w anything?", [X,Y]).
+otherMove(Origin, Asked) :- player(X,Origin),player(Y, Asked),
+                            format("What does ~w ask ~w?\n", [X,Y]),
+                            write("Weapon? "), read(W), write("Suspect? "), 
+                            read(S), write("Room? "), read(R), 
+                            format("Does ~w show ~w anything? (yes/no) ", [X,Y]),
+                            read(Response), readResponse(Response,[R,W,S],Origin,Asked). 
+                          
+%if the other player is asking the user for a card
+otherMove(Origin, _) :- player(X,Origin), format("What does ~w ask you?\n", X),
+                        write("Weapon? "), read(W), write("Suspect? "), read(S), 
+                        write("Room? "), read(R), readResponse(yes, [W,S,R], Origin, 1).   
+                            
+%If the person being asked does have the cards                         
+%readResponse(yes, [R,W,S], Origin, Asked) :- .
+
+%If the person being asked does not have the cards
+readResponse(no,[W,S,R], Origin, Asked) :- assert(doesNotOwn(W,weapon,Asked)),
+                                           assert(doesNotOwn(S,suspect,Asked)),
+                                           assert(doesNotOwn(R,room,Asked)), Next is Asked+1,
+                                           (Next == Origin -> write("No one has these cards.\n\n"), play; true),
+                                           (player(X,Origin),player(Y,Next) -> 
+                                           format("Does ~w show ~w anything? (yes/no) ", [X,Y]), 
+                                           read(Response), readResponse(Response, [W,S,R], Origin, Next);
+                                           readResponse(yes, [W,S,R], Origin, 1)).
+
+%used when the user is asked if they have the cards
+readResponse(_,[W,S,R],Origin,1) :- write("Do you have the cards? (yes/no)"), read(Response),
+                                    (Response == 'yes' -> recommend([W,S,R]), play; 
+                                    (Origin == 2 -> write("No one has these cards.\n\n"), play;
+                                    player(X,Origin), player(Y,2), 
+                                    format("Does ~w show ~w anything? (yes/no) ", [X,Y]), read(Res),
+                                    readResponse(Res,[W,S,R],Origin,2))).
 
 %asserting cards that are owned by the player
-doesNotHave(_Card, _Type, Player):- not(player(_,Player)).
-doesNotHave(Card, Type, Player):- player(_,Player), assert(doesNotOwn(Card, Type, Player)), NewPlayer is Player + 1,
-								  doesNotHave(Card,Type,NewPlayer).
+doesNotHave(_Card, _Type, Player) :- not(player(_,Player)).
+doesNotHave(Card, Type, Player) :- player(_,Player), assert(doesNotOwn(Card, Type, Player)), 
+                                   NewPlayer is Player + 1, doesNotHave(Card,Type,NewPlayer).
 
 %test if an inputted card is valid
 valid(Card,weapon) :- weapon(Card).
@@ -128,15 +155,15 @@ valid(Card,suspect) :- suspect(Card).
 valid(Card,room) :- room(Card).
 
 %prints the contents of the notebook
-printNotebook :-% writes all the names of the players 
-                write("\t\t"),forall(player(X,_Y), format("~w\t\t", X)), write("\n"),
-                findall(X, player(_,X), PlayerList),
-                forall(weapon(A), printPad(A,PlayerList,'')), write("\n"),
-                forall(suspect(B), printPad(B,PlayerList,'')), write("\n"),
-                forall(room(C), printPad(C,PlayerList,'')), write("\n").
+printNotebook :- % writes all the names of the players 
+                 write("\t\t"),forall(player(X,_Y), format("~32t~15| ~w", X)), write("\n"),
+                 findall(X, player(_,X), PlayerList),
+                 forall(weapon(A), printPad(A,PlayerList,'')), write("\n"),
+                 forall(suspect(B), printPad(B,PlayerList,'')), write("\n"),
+                 forall(room(C), printPad(C,PlayerList,'')), write("\n").
 
 %prints out the newly built string for each row in the table
-printPad(Card, [], Str) :-    format('~w ~32t ~15|~w ~n', [Card,Str]). 
+printPad(Card, [], Str) :-    format("~w ~32t ~15|~w ~n", [Card,Str]). 
 
 %builds string to represent which player has what card
 printPad(Card, [H|T], Str) :- (not(Card,_,H) -> string_concat(Str, "\tO\t", NewStr);
@@ -145,7 +172,7 @@ printPad(Card, [H|T], Str) :- (not(Card,_,H) -> string_concat(Str, "\tO\t", NewS
 
 							  
 %checks if a winning solution has been found
-checkWin:- 	retractall(right(_)),
+checkWin :- retractall(right(_)),
 			bagof(Y1,weapon(Y1),A1),findall(X1,not(X1,weapon,_),Z1),subtract(A1,Z1,New1),
 			retract(unknownWeapons(_)),assert(unknownWeapons(New1)),
 			bagof(Y2,room(Y2),A2),findall(X2,not(X2,room,_),Z2),subtract(A2,Z2,New2),
