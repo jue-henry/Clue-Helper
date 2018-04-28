@@ -1,9 +1,11 @@
 %start game setup
-clue :- retractall(weapon(_)), retractall(room(_)), retractall(player(_,_)), 
+clue :- retractall(weapon(_)), retractall(room(_)), retractall(player(_,_)), retractall(right(_)), 
 		retractall(suspect(_)), retractall(not(_,_,_)), retractall(doesNotOwn(_,_, _)),
+        retractall(numWeapons(_)), retractall(numSuspects(_)), retractall(numRooms(_)),
         write("All input must begin with lowercase letters and end with a period.\n"),
 		write("Number of players (3-6)? "), read(Num), validNum(Num),
-		write("List Player Names (lowercase only) \n"), read(Players),players(Players,1), 
+		write("List Player Names within [] and seperated by commas (lowercase only) \n"), 
+        read(Players),players(Players,1), 
 		write("Is this the default version of clue(yes/no)? \n"), read(Default),
 		(Default == 'yes' ->
 			assert(suspect(scarlet)), assert(suspect(plum)), assert(suspect(mustard)),
@@ -12,13 +14,14 @@ clue :- retractall(weapon(_)), retractall(room(_)), retractall(player(_,_)),
 			assert(weapon(wrench)), assert(weapon(candlestick)), assert(weapon(pistol)),
 			assert(room(kitchen)), assert(room(ballroom)), assert(room(conservatory)),
 			assert(room(dining_room)), assert(room(billiard_room)), assert(room(library)),
-			assert(room(lounge)), assert(room(hall)), assert(room(study)),printNotebook;
-			write("List Weapons. List cards within [] and separated by commas.\n"), read(Weapons), weapons(Weapons), 
-			write("List Suspect Names. List cards within [] and separated by commas. \n"), read(Suspects),suspects(Suspects), 
-			write("List Room Names. List cards within [] and separated by commas. \n"), read(Room),rooms(Room)),
-		bagof(X,weapon(X),A), assert(currWeapons(A)),
-		bagof(Y,suspect(Y),B), assert(currSuspects(B)),
-		bagof(Z,room(Z),C), assert(currRooms(C)),
+			assert(room(lounge)), assert(room(hall)), assert(room(study)),printNotebook,
+            assert(numWeapons(6)), assert(numSuspects(6)), assert(numRooms(9));
+			write("List Weapons (14 Characters max).\nList cards within [] and separated by commas.\n"),
+            read(Weapons), length(Weapons, WepLen), assert(numWeapons(WepLen)), weapons(Weapons), 
+			write("List Suspect Names (14 Characters max).\nList cards within [] and separated by commas. \n"), 
+            read(Suspects), length(Suspects, SusLen), assert(numSuspects(SusLen)), suspects(Suspects), 
+			write("List Room Names (14 Characters max).\nList cards within [] and separated by commas. \n"), 
+            read(Rooms), length(Rooms, RoomLen), assert(numRooms(RoomLen)), rooms(Rooms)),
 		playerCards, play.
 
 %checks for valid number of players
@@ -59,7 +62,7 @@ inputCards(_) :- write("One of your inputted cards is incorrect. Try Again. \n")
 
 %console for actions
 play :- (checkWin -> 
-			bagof(A,right(A),Z),format("SUGGEST THE FOLLOWING: ~w \t~w \t~w",Z);true),
+			bagof(A,right(A),Z),format("SUGGEST THE FOLLOWING: ~w ~w ~w\n",Z),abort;true),
 		write("Please choose a number :\n 1. View notebook \n 2. Record your move \n"), 
         write(" 3. Record other players move \n 4. Give suggestion \n 5. Quit\n"), 
         read(X), choice(X).
@@ -116,28 +119,26 @@ valid(Card,room) :- room(Card).
 
 %prints the contents of the notebook
 printNotebook :-% writes all the names of the players 
-                write("\t\t"),forall(player(X,_Y), format("~w \t", X)), write("\n"),
+                write("\t\t"),forall(player(X,_Y), format("~w\t\t", X)), write("\n"),
                 findall(X, player(_,X), PlayerList),
                 forall(weapon(A), printPad(A,PlayerList,'')), write("\n"),
                 forall(suspect(B), printPad(B,PlayerList,'')), write("\n"),
                 forall(room(C), printPad(C,PlayerList,'')), write("\n").
 
-%prints out the string representing who has what card
-printPad(Card, [], Str) :- string_concat(Card, "\t", NewCard), 
-                        string_concat(NewCard, Str, NewStr), format("~w\n", NewStr).
-
+%prints out the newly built string for each row in the table
+printPad(Card, [], Str) :-    format('~w ~32t ~15|~w ~n', [Card,Str]). 
+%string_concat(Card, "\t\t", NewCard), string_concat(NewCard, Str, NewStr), format("~w\n", NewStr).
 %builds string to represent which player has what card
-printPad(Card, [], Str) :- string_concat(Card, "\t", NewCard), string_concat(NewCard, Str, NewStr), format("~w\n", NewStr).
-printPad(Card, [H|T], Str) :- (not(Card,_,H) -> string_concat(Str, "\tO", NewStr);
-							  (doesNotOwn(Card,_,H)-> string_concat(Str, "\tX", NewStr); 
-							  string_concat(Str, "\t", NewStr))),
-							  printPad(Card,T,NewStr).
-%
+printPad(Card, [H|T], Str) :- (not(Card,_,H) -> string_concat(Str, "\tO\t", NewStr);
+							  (doesNotOwn(Card,_,H)-> string_concat(Str, "\tX\t", NewStr); 
+							  string_concat(Str, "\t\t", NewStr))), printPad(Card,T,NewStr).
+	
 
-%BUG: are there always gonnna be 6 weapons, 9 rooms, etc?
-
-%
-%checks for the if a winning solution has been found
-checkWin:- 	bagof(Y1,weapon(Y1),A1),findall(X1,not(X1,weapon,_),Z1),length(Z1,5),subtract(A1,Z1,[New1]),assert(right(New1)),
-			bagof(Y2,room(Y2),A2),findall(X2,not(X2,room,_),Z2),length(Z2,8),subtract(A2,Z2,[New2]),assert(right(New2)),
-			bagof(Y3,suspect(Y3),A3),findall(X3,not(X3,suspect,_),Z3),length(Z3,5),subtract(A3,Z3,[New3]),assert(right(New3)).
+%checks to see if there is a winning solution
+checkWin:- 	retractall(right(_)),
+            bagof(Y1,weapon(Y1),A1),findall(X1,not(X1,weapon,_),Z1), numWeapons(NW), NW2 is NW-1, 
+            length(Z1,NW2),subtract(A1,Z1,[New1]),assert(right(New1)),
+			bagof(Y2,room(Y2),A2),findall(X2,not(X2,room,_),Z2), numSuspects(NS), NS2 is NS-1,
+            length(Z2,NS2),subtract(A2,Z2,[New2]),assert(right(New2)),
+			bagof(Y3,suspect(Y3),A3),findall(X3,not(X3,suspect,_),Z3), numRooms(NR), NR2 is NR-1,
+            length(Z3,NR2), subtract(A3,Z3,[New3]), assert(right(New3)).
