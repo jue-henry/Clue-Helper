@@ -25,7 +25,8 @@ clue :- reset,
 reset :- retractall(weapon(_)), retractall(room(_)), retractall(player(_,_)), retractall(right(_)),
 		 retractall(suspect(_)), retractall(not(_,_,_)), retractall(doesNotOwn(_,_, _)),
 		 retractall(unknownRooms(_)),retractall(unknownSuspects(_)),retractall(unknownWeapons(_)),
-		 retractall(numWeapons(_)), retractall(numSuspects(_)), retractall(numRooms(_)).
+		 retractall(numWeapons(_)), retractall(numSuspects(_)), retractall(numRooms(_)),
+		 retractall(maybeCount(_,_,_)).
 
 %checks for valid number of players
 validNum(3).
@@ -124,7 +125,13 @@ otherMove(Origin, _) :- player(X,Origin), format("What does ~w ask you?\n", X),
                         write("Room? "), read(R), readResponse(yes, [W,S,R], Origin, 1).
 
 %If the person being asked does have the cards
-%readResponse(yes, [R,W,S], Origin, Asked) :- .
+%maybeCount(Item,CurrCount,PlayerNum) - marks the cards a player MAY have
+readResponse(yes, [R,W,S], Origin, Asked) :- (maybeCount(_,CurrCount,Asked) ->
+												NextCount is CurrCount + 1;
+												NextCount is 1),
+											 asserta(maybeCount(R,NextCount,Asked)),
+											 asserta(maybeCount(W,NextCount,Asked)),
+											 asserta(maybeCount(S,NextCount,Asked)).
 
 %If the person being asked does not have the cards
 readResponse(no,[W,S,R], Origin, Asked) :- assert(doesNotOwn(W,weapon,Asked)),
@@ -132,7 +139,7 @@ readResponse(no,[W,S,R], Origin, Asked) :- assert(doesNotOwn(W,weapon,Asked)),
                                            assert(doesNotOwn(R,room,Asked)), Next is Asked+1,
                                            (Next == Origin -> write("No one has these cards.\n\n"), play; true),
                                            (player(X,Origin),player(Y,Next) ->
-                                           format("Does ~w show ~w anything? (yes/no) ", [X,Y]),
+                                           format("Does ~w show ~w anything? (yes/no) ", [Y,X]),
                                            read(Response), readResponse(Response, [W,S,R], Origin, Next);
                                            readResponse(yes, [W,S,R], Origin, 1)).
 
@@ -171,8 +178,9 @@ printPad(Card, [], Str) :- format("~w~20|~w  ", [Card,Str]),nl.
 %builds string to represent which player has what card
 printPad(Card, [H|T], Str) :- player(Name,H),string_length(Name,NameLen),
                               (not(Card,_,H) -> string_concat(Str, "0 ", NewStr);
-							                       (doesNotOwn(Card,_,H)-> string_concat(Str, "X ", NewStr);
-							                string_concat(Str, " ", NewStr))), fillSpace(NewStr,NameLen,FinStr), printPad(Card,T,FinStr).
+							  (doesNotOwn(Card,_,H)-> string_concat(Str, "X ", NewStr);
+							  string_concat(Str, "  ", NewStr))), 
+							  fillSpace(NewStr,NameLen,FinStr), printPad(Card,T,FinStr).
 
 fillSpace(String,0,String) :- !.
 fillSpace(String,NameLen,FinStr) :- string_concat(String,' ',NewStr), NewLen is NameLen - 1, fillSpace(NewStr,NewLen,FinStr).
@@ -188,3 +196,24 @@ checkWin :- retractall(right(_)),
 			length(New1,1),New1 = [LastWeapon],assert(right(LastWeapon)),
 			length(New2,1),New2 = [LastRoom],assert(right(LastRoom)),
 			length(New3,1), New3 = [LastSus],assert(right(LastSus)).
+
+checkMaybes :- forall(weapon(A), elimMaybes(A)),
+               forall(suspect(B), elimMaybes(B)),
+               forall(room(C), elimMaybes(C)),
+			   findall(X, player(_,X), PlayerList).
+			   
+elimMaybes(Item) :- (doesNotOwn(Item,_,PlayerNum), maybeCount(Item,_,PlayerNum) -> 
+						retract(maybeCount(Item,_,PlayerNum));true).
+
+% after eliminating places with both an X and a Maybe,
+% check to see if there is only a single instance of a particular Maybe count
+% if there is, you know that they have that card, hence you go from 'maybe' to 'known'
+maybe2known(PlayerNum) :- findall(counts,maybeCount(_,maybeCount, PlayerNum),List),
+						  msort(List,Sorted), Sorted = [H|T], removeDuplicates(H,T,EndList).
+
+% will remove all elements that appear more than once						  
+removeDuplicates(X,[],[X]) :- !.
+% if first element in list matches second element, remove all instances of that element
+removeDuplicates(H,[H|T],EndList) :- delete(T,H,[NewH|NewT]),!, removeDuplicates(NewH,NewT,EndList).
+% else, recurse on list	
+removeDuplicates(H,[NewH|NewT],[H|Rest]) :- removeDuplicates(NewH,NewT,Rest).
