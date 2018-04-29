@@ -88,8 +88,8 @@ getRoom(Room) :- unknownRooms([Room|_Etc]).
 
 %record your move and recording it
 yourMove :- write("What did you ask to see from "), player(X,2), write(X), write("?\n"),
-            write("Weapon? "), read(W), write("Suspect? "), read(S),
-			write("Room? "), read(R),room(R), weapon(W), suspect(S), write("Do they have it? (yes/no) "),
+            write("Suspect? "), read(S), write("Weapon? "), read(W),
+			      write("Room? "), read(R),room(R), weapon(W), suspect(S), write("Do they have it? (yes/no) "),
             read(Answer), have(Answer,[W,R,S],2).
 
 %when the player you asked has one of the three cards
@@ -114,19 +114,20 @@ crossExtras(Card, Type, End, _Current) :- crossExtras(Card,Type,End,1).
 %prompt for other player's move and record
 otherMove(Origin, Asked) :- player(X,Origin),player(Y, Asked),
                             format("What does ~w ask ~w?\n", [X,Y]),
-                            write("Weapon? "), read(W), write("Suspect? "),
-                            read(S), write("Room? "), read(R),
+                            write("Suspect? "),read(S),
+                            write("Weapon? "), read(W),
+                            write("Room? "), read(R),
                             format("Does ~w show ~w anything? (yes/no) ", [Y,X]),
                             read(Response), readResponse(Response,[R,W,S],Origin,Asked).
 
 %if the other player is asking the user for a card
 otherMove(Origin, _) :- player(X,Origin), format("What does ~w ask you?\n", X),
-                        write("Weapon? "), read(W), write("Suspect? "), read(S),
+                        write("Suspect? "), read(S), write("Weapon? "), read(W),
                         write("Room? "), read(R), readResponse(yes, [W,S,R], Origin, 1).
 
 %If the person being asked does have the cards
 %maybeCount(Item,CurrCount,PlayerNum) - marks the cards a player MAY have
-readResponse(yes, [R,W,S], Origin, Asked) :- (maybeCount(_,CurrCount,Asked) ->
+readResponse(yes, [R,W,S], _Origin, Asked) :- (maybeCount(_,CurrCount,Asked) ->
 												NextCount is CurrCount + 1;
 												NextCount is 1),
 											 asserta(maybeCount(R,NextCount,Asked)),
@@ -168,8 +169,8 @@ printNotebook :- nl,  % required else names will be printed starting at position
                       % can force error on terminal: read(X),printNotebook.
                  forall(player(X,_Y), format("~20|~w  ", X)), nl,  % writes all the names of the players
                  findall(X, player(_,X), PlayerList),
-                 forall(weapon(A), printPad(A,PlayerList,'')), write("\n"),
                  forall(suspect(B), printPad(B,PlayerList,'')), write("\n"),
+                 forall(weapon(A), printPad(A,PlayerList,'')), write("\n"),
                  forall(room(C), printPad(C,PlayerList,'')), write("\n").
 
 %prints out the newly built string for each row in the table
@@ -179,7 +180,7 @@ printPad(Card, [], Str) :- format("~w~20|~w  ", [Card,Str]),nl.
 printPad(Card, [H|T], Str) :- player(Name,H),string_length(Name,NameLen),
                               (not(Card,_,H) -> string_concat(Str, "0 ", NewStr);
 							  (doesNotOwn(Card,_,H)-> string_concat(Str, "X ", NewStr);
-							  string_concat(Str, "  ", NewStr))), 
+							  string_concat(Str, "  ", NewStr))),
 							  fillSpace(NewStr,NameLen,FinStr), printPad(Card,T,FinStr).
 
 fillSpace(String,0,String) :- !.
@@ -200,20 +201,33 @@ checkWin :- retractall(right(_)),
 checkMaybes :- forall(weapon(A), elimMaybes(A)),
                forall(suspect(B), elimMaybes(B)),
                forall(room(C), elimMaybes(C)),
-			   findall(X, player(_,X), PlayerList).
-			   
-elimMaybes(Item) :- (doesNotOwn(Item,_,PlayerNum), maybeCount(Item,_,PlayerNum) -> 
+			         findall(X, player(_,X), PlayerList),
+               maybe2known(PlayerList).
+
+% eliminates items with a MAYBE and a NOT mark, since it can't be both
+elimMaybes(Item) :- (doesNotOwn(Item,_,PlayerNum), maybeCount(Item,_,PlayerNum) ->
 						retract(maybeCount(Item,_,PlayerNum));true).
 
-% after eliminating places with both an X and a Maybe,
+% after eliminating places with both an NOT and a MAYBE,
 % check to see if there is only a single instance of a particular Maybe count
 % if there is, you know that they have that card, hence you go from 'maybe' to 'known'
-maybe2known(PlayerNum) :- findall(counts,maybeCount(_,maybeCount, PlayerNum),List),
-						  msort(List,Sorted), Sorted = [H|T], removeDuplicates(H,T,EndList).
+maybe2known([]).
+maybe2known([PlayNumH|PlayNumT]) :- findall(Counts,maybeCount(_,Counts, PlayNumH),List), length(List,ListLen),
+              (ListLen > 0 ->
+						       msort(List,Sorted), Sorted = [H|T], removeDuplicates(H,T,EndList),
+              markKnown(EndList,PlayNumH);true), maybe2known(PlayNumT).
 
-% will remove all elements that appear more than once						  
+
+% will remove all elements that appear more than once
 removeDuplicates(X,[],[X]) :- !.
+% if only 2 elements in list and they're the same, ignore.
+removeDuplicates(H,[H],[]) :- !.
 % if first element in list matches second element, remove all instances of that element
 removeDuplicates(H,[H|T],EndList) :- delete(T,H,[NewH|NewT]),!, removeDuplicates(NewH,NewT,EndList).
-% else, recurse on list	
+% else, recurse on list
 removeDuplicates(H,[NewH|NewT],[H|Rest]) :- removeDuplicates(NewH,NewT,Rest).
+
+markKnown([],_).
+markKnown([H|T], PlayerNum) :- maybeCount(Card,H,PlayerNum), valid(Card,Type), retract(maybeCount(Card,H,PlayerNum)),
+                               assert(not(Card,Type,PlayerNum)), NextPlayer is PlayerNum + 1,
+                               crossExtras(Card, Type,PlayerNum, NextPlayer), markKnown(T,PlayerNum).
