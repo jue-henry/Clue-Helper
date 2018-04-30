@@ -29,7 +29,7 @@ clue :- reset,
     assert(allSuspects(TotSuspects)), assert(allWeapons(TotWeapons)), assert(allRooms(TotRooms)),
 		playerCards,!, play.
 
-reset :- retractall(weapon(_)), retractall(room(_)), retractall(player(_,_)), retractall(right(_)),
+reset :- retractall(weapon(_)), retractall(room(_)), retractall(player(_,_)), retractall(right(_,_)),
 		     retractall(suspect(_)), retractall(not(_,_,_)), retractall(doesNotOwn(_,_, _)),
 		     retractall(unknownRooms(_)),retractall(unknownSuspects(_)),retractall(unknownWeapons(_)),
 		     retractall(numWeapons(_)), retractall(numSuspects(_)), retractall(numRooms(_)),
