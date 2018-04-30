@@ -1,5 +1,5 @@
-% Programmers: 
-% 	Va Vong 	- 912673787 
+% Programmers:
+% 	Va Vong 	- 912673787
 %	Henry Jue 	- 913037267
 
 %start game setup
@@ -112,9 +112,9 @@ have(yes, List, PlayerNum) :- write("What card was it?"), read(Card), member(Car
 							  crossExtras(Card, Type,PlayerNum, NextPlayer), play.
 
 %when the player you asked does not have one of the three cards
-have(no, [S,W,R], PlayerNum) :- Next is PlayerNum+1, 
+have(no, [S,W,R], PlayerNum) :- Next is PlayerNum+1,
 								(doesNotOwn(W,weapon,PlayerNum) -> true; assert(doesNotOwn(W,weapon,PlayerNum))),
-								(doesNotOwn(R,room,PlayerNum) -> true; assert(doesNotOwn(R,room,PlayerNum))), 
+								(doesNotOwn(R,room,PlayerNum) -> true; assert(doesNotOwn(R,room,PlayerNum))),
 								(doesNotOwn(S,suspect,PlayerNum) -> true; assert(doesNotOwn(S,suspect,PlayerNum))),
 								(player(X, Next) -> write("Does "), write(X),
 								write(" have it?"), read(NewAnswer), have(NewAnswer, [W,R,S], Next);
@@ -149,7 +149,7 @@ recommend([S,W,R],Origin) :- (shown(X,Origin), member(X,[S,W,R]) ->             
                              format("\nRecommended that you show ~w.\n",X);        % show that same card
                              shown(Y,_), member(Y,[S,W,R]) ->                      % else if we've shown any card before,
                              format("\nRecommended that you show ~w.\n",Y),      % assert that same card if it's in the list
-                             assert(shown(Y,Origin));                   
+                             assert(shown(Y,Origin));
                              findall(X,not(X,_,1),YourCards),
                              intersection(YourCards,[S,W,R],[H|_T]),             % else show any card you want
                              format("\nRecommended that you show ~w.\n",H),      % if more than 1 possible,
@@ -178,7 +178,7 @@ readResponse(yes, [S,W,R], _Origin, Asked) :- (maybeCount(_,CurrCount,Asked) ->
 %If the person being asked does not have the cards
 readResponse(no,[S,W,R], Origin, Asked) :- (doesNotOwn(W,weapon,Asked) -> true;assert(doesNotOwn(W,weapon,Asked))),
                                            (doesNotOwn(S,suspect,Asked) -> true; assert(doesNotOwn(S,suspect,Asked))),
-                                           (doesNotOwn(R,room,Asked) -> true; assert(doesNotOwn(R,room,Asked))), 
+                                           (doesNotOwn(R,room,Asked) -> true; assert(doesNotOwn(R,room,Asked))),
 										   Next is Asked+1,
                                            (Next == Origin -> write("No one has these cards.\n\n"), play; true),
                                            (player(X,Origin),player(Y,Next) ->
@@ -222,22 +222,21 @@ fillSpace(String,0,String) :- !.
 fillSpace(String,NameLen,FinStr) :- string_concat(String,' ',NewStr), NewLen is NameLen - 1, fillSpace(NewStr,NewLen,FinStr).
 
 %checks if a winning solution has been found
-checkWin :- retractall(right(_)),
+checkWin :- retractall(right(_,_)),
 			allWeapons(A1),findall(X1,not(X1,weapon,_),Z1),subtract(A1,Z1,New1),
 			(retract(unknownWeapons(_));true),assert(unknownWeapons(New1)),
 			allRooms(A2),findall(X2,not(X2,room,_),Z2),subtract(A2,Z2,New2),
 			(retract(unknownRooms(_));true),assert(unknownRooms(New2)),
 			allSuspects(A3),findall(X3,not(X3,suspect,_),Z3),subtract(A3,Z3,New3),
 			(retract(unknownSuspects(_));true),assert(unknownSuspects(New3)),!,
-			(length(New1,1),length(New2,1),length(New3,1) ->
-				New3 = [LastSus],assert(right(LastSus)),
-				New1 = [LastWeapon],assert(right(LastWeapon)),
-				New2 = [LastRoom],assert(right(LastRoom));
-			countTheX(A3),countTheX(A1),countTheX(A2)).
+			(length(New1,1) -> New1 = [LastWeapon],assert(right(LastWeapon,weapon)); true),
+      (length(New2,1) -> New2 = [LastRoom],assert(right(LastRoom,room)); true),
+      (length(New3,1) -> New3 = [LastSus],assert(right(LastSus,suspect)); true),
+			(countTheX(A3,suspect);countTheX(A1,weapon);countTheX(A2,room)).
 
 countTheX([]) :- false.
-countTheX([H|T]) :- findall(X,doesNotOwn(H,_,X),List), numPlayers(Num), sort(List,NoDupes), % sort gets rid of duplicates just in case
-                            (length(NoDupes,Num) -> assert(right(H)); countTheX(T)).
+countTheX([H|T],Type) :- findall(X,doesNotOwn(H,_,X),List), numPlayers(Num), sort(List,NoDupes), % sort gets rid of duplicates just in case
+                            (length(NoDupes,Num) -> assert(right(H,)); countTheX(T,Type)).
 
 
 checkMaybes :- forall(weapon(A), elimMaybes(A)),
@@ -262,15 +261,17 @@ maybe2known([PlayNumH|PlayNumT]) :- findall(Counts,maybeCount(_,Counts, PlayNumH
 
 % will remove all elements that appear more than once
 removeDuplicates(X,[],[X]) :- !.
-% if only 2 elements in list and they're the same, ignore.
+% if only 2 elements in list and they're the same, return empty list
 removeDuplicates(H,[H],[]) :- !.
 % if first element in list matches second element, remove all instances of that element
-removeDuplicates(H,[H|T],EndList) :- delete(T,H,[NewH|NewT]),!, removeDuplicates(NewH,NewT,EndList).
+removeDuplicates(H,[H|T],EndList) :- (delete(T,H,[NewH|NewT]) ->
+                                        removeDuplicates(NewH,NewT,EndList);
+                                        removeDuplicates(1,[1],EndList)),!.
 % else, recurse on list
 removeDuplicates(H,[NewH|NewT],[H|Rest]) :- removeDuplicates(NewH,NewT,Rest).
 
 markKnown([],_).
-markKnown([H|T], PlayerNum) :- maybeCount(Card,H,PlayerNum), valid(Card,Type), 
-                               retract(maybeCount(Card,H,PlayerNum)),assert(not(Card,Type,PlayerNum)), 
-                               NextPlayer is PlayerNum + 1, crossExtras(Card, Type,PlayerNum, NextPlayer), 
+markKnown([H|T], PlayerNum) :- maybeCount(Card,H,PlayerNum), valid(Card,Type),
+                               retract(maybeCount(Card,H,PlayerNum)),assert(not(Card,Type,PlayerNum)),
+                               NextPlayer is PlayerNum + 1, crossExtras(Card, Type,PlayerNum, NextPlayer),
                                markKnown(T,PlayerNum).
