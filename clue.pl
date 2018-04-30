@@ -5,9 +5,10 @@
 %start game setup
 clue :- reset,
         write("All input must begin with lowercase letters and end with a period.\n"),
-		write("Number of players (3-6)? "), read(Num), validNum(Num), assert(numPlayers(Num)),
-		write("List Player Names within [] and seperated by commas (lowercase only) \n"),
-        read(Players),players(Players,1),
+		    write("Number of players (3-6)? "), read(Num), validNum(Num), assert(numPlayers(Num)),
+		    write("List Player Names within [] and seperated by commas (lowercase only) \n"),
+        read(Players),
+        (length(Players,Num) -> players(Players,1); write("Incorrect number of names.\n\n"),clue),
 		write("Is this the default version of clue(yes/no)? \n"), read(Default),
 		(Default == 'yes' ->
 			assert(suspect(scarlet)), assert(suspect(plum)), assert(suspect(mustard)),
@@ -29,11 +30,11 @@ clue :- reset,
 		playerCards,!, play.
 
 reset :- retractall(weapon(_)), retractall(room(_)), retractall(player(_,_)), retractall(right(_)),
-		 retractall(suspect(_)), retractall(not(_,_,_)), retractall(doesNotOwn(_,_, _)),
-		 retractall(unknownRooms(_)),retractall(unknownSuspects(_)),retractall(unknownWeapons(_)),
-		 retractall(numWeapons(_)), retractall(numSuspects(_)), retractall(numRooms(_)),
-		 retractall(maybeCount(_,_,_)), retractall(shown(_,_)),retractall(allSuspects(_)),retractall(allWeapons(_)),
-     retractall(allRooms(_)), retractall(numPlayers(_)).
+		     retractall(suspect(_)), retractall(not(_,_,_)), retractall(doesNotOwn(_,_, _)),
+		     retractall(unknownRooms(_)),retractall(unknownSuspects(_)),retractall(unknownWeapons(_)),
+		     retractall(numWeapons(_)), retractall(numSuspects(_)), retractall(numRooms(_)),
+		     retractall(maybeCount(_,_,_)), retractall(shown(_,_)),retractall(allSuspects(_)),
+         retractall(allWeapons(_)),retractall(allRooms(_)), retractall(numPlayers(_)).
 
 %checks for valid number of players
 validNum(3).
@@ -59,8 +60,8 @@ rooms([H|T]) :- assert(room(H)),rooms(T).
 
 %prompt players for their cards
 playerCards :- write("What cards do you hold? List cards within [] and separated by commas.\n"),
-                read(Yours), inputCards(Yours), allSuspects(X), allWeapons(Y),allRooms(Z),append(X,Y,Temp),
-                append(Temp,Z,AllCards),subtract(AllCards,Yours,NotYours), notYours(NotYours).
+               read(Yours), inputCards(Yours), allSuspects(X), allWeapons(Y),allRooms(Z),append(X,Y,Temp),
+               append(Temp,Z,AllCards),subtract(AllCards,Yours,NotYours), notYours(NotYours).
 
 %checks if card is valid and adds it to our current database
 notYours([]).
@@ -73,10 +74,8 @@ inputCards([H]) :- room(H), assert(not(H, room, 1)), doesNotHave(H,room,2).
 inputCards([H|T]) :- weapon(H),assert(not(H, weapon, 1)),doesNotHave(H,weapon,2),inputCards(T).
 inputCards([H|T]) :- suspect(H),assert(not(H, suspect, 1)),doesNotHave(H,suspect,2),inputCards(T).
 inputCards([H|T]) :- room(H),assert(not(H, room, 1)),doesNotHave(H,room,2),inputCards(T).
-inputCards([]).
-%inputCards([H|T]) :- valid(H,Type),assert(not(H, Type, 1)),doesNotHave(H,Type,2),inputCards(T).
 inputCards([H|_T]) :- format("~w is not a card. Try Again.\n", H),
-				 retractall(not(_,_,_)), retractall(doesNotOwn(_,_,_)), playerCards.
+				              retractall(not(_,_,_)), retractall(doesNotOwn(_,_,_)), playerCards.
 
 %console for actions
 play :- (checkWin -> bagof(A,right(A),Z),format("SUGGEST THE FOLLOWING: ~w ~w ~w\n",Z),abort;true),
@@ -147,14 +146,14 @@ otherMove(Origin, _) :- player(X,Origin), format("What does ~w ask you?\n", X),
 % pick which card to recommend to who
 % shown(Card,PersonShownTo) keeps track of what we've shown to who
 recommend([S,W,R],Origin) :- (shown(X,Origin), member(X,[S,W,R]) ->                   % if we've shown a card to this player before
-                                format("\nRecommended that you show ~w.\n",X);        % show that same card
-                                shown(Y,_), member(Y,[S,W,R]) ->                      % else if we've shown any card before,
-                                  format("\nRecommended that you show ~w.\n",Y),      % assert that same card if it's in the list
-                                  assert(shown(Y,Origin));
-                                  findall(X,not(X,_,1),YourCards),
-                                  intersection(YourCards,[S,W,R],[H|_T]),             % else show any card you want
-                                  format("\nRecommended that you show ~w.\n",H),      % if more than 1 possible,
-                                  assert(shown(H,Origin))).                           % show order: Suspect->Weapon->Place
+                             format("\nRecommended that you show ~w.\n",X);        % show that same card
+                             shown(Y,_), member(Y,[S,W,R]) ->                      % else if we've shown any card before,
+                             format("\nRecommended that you show ~w.\n",Y),      % assert that same card if it's in the list
+                             assert(shown(Y,Origin));                   
+                             findall(X,not(X,_,1),YourCards),
+                             intersection(YourCards,[S,W,R],[H|_T]),             % else show any card you want
+                             format("\nRecommended that you show ~w.\n",H),      % if more than 1 possible,
+                             assert(shown(H,Origin))).                           % show order: Suspect->Weapon->Place
 
 
 %used when the user is asked if they have the cards
@@ -215,9 +214,9 @@ printPad(Card, [], Str) :- format("~w~20|~w  ", [Card,Str]),nl.
 %builds string to represent which player has what card
 printPad(Card, [H|T], Str) :- player(Name,H),string_length(Name,NameLen),
                               (not(Card,_,H) -> string_concat(Str, "0 ", NewStr);
-							  (doesNotOwn(Card,_,H)-> string_concat(Str, "X ", NewStr);
-							  string_concat(Str, "  ", NewStr))),
-							  fillSpace(NewStr,NameLen,FinStr), printPad(Card,T,FinStr).
+							                (doesNotOwn(Card,_,H)-> string_concat(Str, "X ", NewStr);
+							                string_concat(Str, "  ", NewStr))),
+							                fillSpace(NewStr,NameLen,FinStr), printPad(Card,T,FinStr).
 
 fillSpace(String,0,String) :- !.
 fillSpace(String,NameLen,FinStr) :- string_concat(String,' ',NewStr), NewLen is NameLen - 1, fillSpace(NewStr,NewLen,FinStr).
@@ -239,6 +238,7 @@ checkWin :- retractall(right(_)),
 countTheX([]) :- false.
 countTheX([H|T]) :- findall(X,doesNotOwn(H,_,X),List), numPlayers(Num), sort(List,NoDupes), % sort gets rid of duplicates just in case
                             (length(NoDupes,Num) -> assert(right(H)); countTheX(T)).
+
 
 checkMaybes :- forall(weapon(A), elimMaybes(A)),
                forall(suspect(B), elimMaybes(B)),
@@ -270,6 +270,7 @@ removeDuplicates(H,[H|T],EndList) :- delete(T,H,[NewH|NewT]),!, removeDuplicates
 removeDuplicates(H,[NewH|NewT],[H|Rest]) :- removeDuplicates(NewH,NewT,Rest).
 
 markKnown([],_).
-markKnown([H|T], PlayerNum) :- maybeCount(Card,H,PlayerNum), valid(Card,Type), retract(maybeCount(Card,H,PlayerNum)),
-                               assert(not(Card,Type,PlayerNum)), NextPlayer is PlayerNum + 1,
-                               crossExtras(Card, Type,PlayerNum, NextPlayer), markKnown(T,PlayerNum).
+markKnown([H|T], PlayerNum) :- maybeCount(Card,H,PlayerNum), valid(Card,Type), 
+                               retract(maybeCount(Card,H,PlayerNum)),assert(not(Card,Type,PlayerNum)), 
+                               NextPlayer is PlayerNum + 1, crossExtras(Card, Type,PlayerNum, NextPlayer), 
+                               markKnown(T,PlayerNum).
