@@ -1,9 +1,10 @@
 %start game setup
 clue :- reset,
         write("All input must begin with lowercase letters and end with a period.\n"),
-		write("Number of players (3-6)? "), read(Num), validNum(Num), assert(numPlayers(Num)),
-		write("List Player Names within [] and seperated by commas (lowercase only) \n"),
-        read(Players),players(Players,1),
+		    write("Number of players (3-6)? "), read(Num), validNum(Num), assert(numPlayers(Num)),
+		    write("List Player Names within [] and seperated by commas (lowercase only) \n"),
+        read(Players),
+        (length(Players,Num) -> players(Players,1); write("Incorrect number of names.\n\n"),clue),
 		write("Is this the default version of clue(yes/no)? \n"), read(Default),
 		(Default == 'yes' ->
 			assert(suspect(scarlet)), assert(suspect(plum)), assert(suspect(mustard)),
@@ -25,11 +26,11 @@ clue :- reset,
 		playerCards,!, play.
 
 reset :- retractall(weapon(_)), retractall(room(_)), retractall(player(_,_)), retractall(right(_)),
-		 retractall(suspect(_)), retractall(not(_,_,_)), retractall(doesNotOwn(_,_, _)),
-		 retractall(unknownRooms(_)),retractall(unknownSuspects(_)),retractall(unknownWeapons(_)),
-		 retractall(numWeapons(_)), retractall(numSuspects(_)), retractall(numRooms(_)),
-		 retractall(maybeCount(_,_,_)), retractall(shown(_,_)),retractall(allSuspects(_)),retractall(allWeapons(_)),
-     retractall(allRooms(_)), retractall(numPlayers(_)).
+		     retractall(suspect(_)), retractall(not(_,_,_)), retractall(doesNotOwn(_,_, _)),
+		     retractall(unknownRooms(_)),retractall(unknownSuspects(_)),retractall(unknownWeapons(_)),
+		     retractall(numWeapons(_)), retractall(numSuspects(_)), retractall(numRooms(_)),
+		     retractall(maybeCount(_,_,_)), retractall(shown(_,_)),retractall(allSuspects(_)),
+         retractall(allWeapons(_)),retractall(allRooms(_)), retractall(numPlayers(_)).
 
 %checks for valid number of players
 validNum(3).
@@ -55,24 +56,18 @@ rooms([H|T]) :- assert(room(H)),rooms(T).
 
 %prompt players for their cards
 playerCards :- write("What cards do you hold? List cards within [] and separated by commas.\n"),
-                read(Yours), inputCards(Yours), allSuspects(X), allWeapons(Y),allRooms(Z),append(X,Y,Temp),
-                append(Temp,Z,AllCards),subtract(AllCards,Yours,NotYours), notYours(NotYours).
+               read(Yours), inputCards(Yours), allSuspects(X), allWeapons(Y),allRooms(Z),append(X,Y,Temp),
+               append(Temp,Z,AllCards),subtract(AllCards,Yours,NotYours), notYours(NotYours).
 
 %checks if card is valid and adds it to our current database
 notYours([]).
 notYours([H|T]) :- valid(H,Type),assert(doesNotOwn(H,Type,1)), notYours(T).
 
 %checks if card is valid and adds it to our current database
-%inputCards([H]) :- weapon(H), assert(not(H, weapon, 1)), doesNotHave(H,weapon,2).
-%inputCards([H]) :- suspect(H), assert(not(H, suspect, 1)),doesNotHave(H,suspect,2).
-%inputCards([H]) :- room(H), assert(not(H, room, 1)), doesNotHave(H,room,2).
-%inputCards([H|T]) :- weapon(H),assert(not(H, weapon, 1)),doesNotHave(H,weapon,2),inputCards(T).
-%inputCards([H|T]) :- suspect(H),assert(not(H, suspect, 1)),doesNotHave(H,suspect,2),inputCards(T).
-%inputCards([H|T]) :- room(H),assert(not(H, room, 1)),doesNotHave(H,room,2),inputCards(T).
 inputCards([]).
 inputCards([H|T]) :- valid(H,Type),assert(not(H, Type, 1)),doesNotHave(H,Type,2),inputCards(T).
 inputCards([H|_T]) :- format("~w is not a card. Try Again.\n", H),
-				 retractall(not(_,_,_)), retractall(doesNotOwn(_,_,_)), playerCards.
+				              retractall(not(_,_,_)), retractall(doesNotOwn(_,_,_)), playerCards.
 
 %console for actions
 play :- (checkWin -> bagof(A,right(A),Z),format("SUGGEST THE FOLLOWING: ~w ~w ~w\n",Z),abort;true),
@@ -109,10 +104,11 @@ have(yes, List, PlayerNum) :- write("What card was it?"), read(Card), member(Car
 
 %when the player you asked does not have one of the three cards
 have(no, [S,W,R], PlayerNum) :- Next is PlayerNum+1, assert(doesNotOwn(W,weapon,PlayerNum)),
-								assert(doesNotOwn(R,room,PlayerNum)), assert(doesNotOwn(S,suspect,PlayerNum)),
-								(player(X, Next) -> write("Does "), write(X),
-								write(" have it?"), read(NewAnswer), have(NewAnswer, [W,R,S], Next);
-								write("No one has these three cards. \n\n"), play).
+								                assert(doesNotOwn(R,room,PlayerNum)), 
+                                assert(doesNotOwn(S,suspect,PlayerNum)),
+								                (player(X, Next) -> write("Does "), write(X),
+								                write(" have it?"), read(NewAnswer), have(NewAnswer, [W,R,S], Next);
+								                write("No one has these three cards. \n\n"), play).
 
 
 %asserts the cards that are not owned by the other players when shwon a card
@@ -140,14 +136,14 @@ otherMove(Origin, _) :- player(X,Origin), format("What does ~w ask you?\n", X),
 % pick which card to recommend to who
 % shown(Card,PersonShownTo) keeps track of what we've shown to who
 recommend([S,W,R],Origin) :- (shown(X,Origin), member(X,[S,W,R]) ->                   % if we've shown a card to this player before
-                                format("\nRecommended that you show ~w.\n",X);        % show that same card
-                                shown(Y,_), member(Y,[S,W,R]) ->                      % else if we've shown any card before,
-                                  format("\nRecommended that you show ~w.\n",Y),      % assert that same card if it's in the list
-                                  assert(shown(Y,Origin));
-                                  findall(X,not(X,_,1),YourCards),
-                                  intersection(YourCards,[S,W,R],[H|_T]),             % else show any card you want
-                                  format("\nRecommended that you show ~w.\n",H),      % if more than 1 possible,
-                                  assert(shown(H,Origin))).                           % show order: Suspect->Weapon->Place
+                             format("\nRecommended that you show ~w.\n",X);        % show that same card
+                             shown(Y,_), member(Y,[S,W,R]) ->                      % else if we've shown any card before,
+                             format("\nRecommended that you show ~w.\n",Y),      % assert that same card if it's in the list
+                             assert(shown(Y,Origin));                   
+                             findall(X,not(X,_,1),YourCards),
+                             intersection(YourCards,[S,W,R],[H|_T]),             % else show any card you want
+                             format("\nRecommended that you show ~w.\n",H),      % if more than 1 possible,
+                             assert(shown(H,Origin))).                           % show order: Suspect->Weapon->Place
 
 
 %used when the user is asked if they have the cards
@@ -207,30 +203,30 @@ printPad(Card, [], Str) :- format("~w~20|~w  ", [Card,Str]),nl.
 %builds string to represent which player has what card
 printPad(Card, [H|T], Str) :- player(Name,H),string_length(Name,NameLen),
                               (not(Card,_,H) -> string_concat(Str, "0 ", NewStr);
-							  (doesNotOwn(Card,_,H)-> string_concat(Str, "X ", NewStr);
-							  string_concat(Str, "  ", NewStr))),
-							  fillSpace(NewStr,NameLen,FinStr), printPad(Card,T,FinStr).
+							                (doesNotOwn(Card,_,H)-> string_concat(Str, "X ", NewStr);
+							                string_concat(Str, "  ", NewStr))),
+							                fillSpace(NewStr,NameLen,FinStr), printPad(Card,T,FinStr).
 
 fillSpace(String,0,String) :- !.
 fillSpace(String,NameLen,FinStr) :- string_concat(String,' ',NewStr), NewLen is NameLen - 1, fillSpace(NewStr,NewLen,FinStr).
 
 %checks if a winning solution has been found
 checkWin :- retractall(right(_)),
-			allWeapons(A1),findall(X1,not(X1,weapon,_),Z1),subtract(A1,Z1,New1),
-			(retract(unknownWeapons(_));true),assert(unknownWeapons(New1)),
-			allRooms(A2),findall(X2,not(X2,room,_),Z2),subtract(A2,Z2,New2),
-			(retract(unknownRooms(_));true),assert(unknownRooms(New2)),
-			allSuspects(A3),findall(X3,not(X3,suspect,_),Z3),subtract(A3,Z3,New3),
-			(retract(unknownSuspects(_));true),assert(unknownSuspects(New3)),
-			(length(New1,1),length(New2,1),length(New3,1) ->
-        New1 = [LastWeapon],assert(right(LastWeapon)),
-			  New2 = [LastRoom],assert(right(LastRoom)),
-			  New3 = [LastSus],assert(right(LastSus));
-        countTheX(A1),countTheX(A2),countTheX(A3)).
+			      allWeapons(A1),findall(X1,not(X1,weapon,_),Z1),subtract(A1,Z1,New1),
+			      (retract(unknownWeapons(_));true),assert(unknownWeapons(New1)),
+			      allRooms(A2),findall(X2,not(X2,room,_),Z2),subtract(A2,Z2,New2),
+			      (retract(unknownRooms(_));true),assert(unknownRooms(New2)),
+			      allSuspects(A3),findall(X3,not(X3,suspect,_),Z3),subtract(A3,Z3,New3),
+			      (retract(unknownSuspects(_));true),assert(unknownSuspects(New3)),
+			      (length(New1,1),length(New2,1),length(New3,1) ->
+            New1 = [LastWeapon],assert(right(LastWeapon)),
+			      New2 = [LastRoom],assert(right(LastRoom)),
+			      New3 = [LastSus],assert(right(LastSus));
+            countTheX(A1),countTheX(A2),countTheX(A3)).
 
 countTheX([]) :- false.
 countTheX([H|T]) :- findall(H,doesNotOwn(H,_,_),List), numPlayers(Num),
-                            (length(List,Num) -> assert(right(H)); countTheX(T)).
+                    (length(List,Num) -> assert(right(H)); countTheX(T)).
 
 checkMaybes :- forall(weapon(A), elimMaybes(A)),
                forall(suspect(B), elimMaybes(B)),
@@ -262,6 +258,7 @@ removeDuplicates(H,[H|T],EndList) :- delete(T,H,[NewH|NewT]),!, removeDuplicates
 removeDuplicates(H,[NewH|NewT],[H|Rest]) :- removeDuplicates(NewH,NewT,Rest).
 
 markKnown([],_).
-markKnown([H|T], PlayerNum) :- maybeCount(Card,H,PlayerNum), valid(Card,Type), retract(maybeCount(Card,H,PlayerNum)),
-                               assert(not(Card,Type,PlayerNum)), NextPlayer is PlayerNum + 1,
-                               crossExtras(Card, Type,PlayerNum, NextPlayer), markKnown(T,PlayerNum).
+markKnown([H|T], PlayerNum) :- maybeCount(Card,H,PlayerNum), valid(Card,Type), 
+                               retract(maybeCount(Card,H,PlayerNum)),assert(not(Card,Type,PlayerNum)), 
+                               NextPlayer is PlayerNum + 1, crossExtras(Card, Type,PlayerNum, NextPlayer), 
+                               markKnown(T,PlayerNum).
