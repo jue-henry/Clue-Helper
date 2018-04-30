@@ -15,11 +15,11 @@ clue :- reset,
 			assert(room(dining_room)), assert(room(billiard_room)), assert(room(library)),
 			assert(room(lounge)), assert(room(hall)), assert(room(study)),printNotebook,
             assert(numWeapons(6)), assert(numSuspects(6)), assert(numRooms(9));
-			write("List Weapons (13 Characters max).\nList cards within [] and separated by commas.\n"),
-            read(Weapons), length(Weapons, WepLen), assert(numWeapons(WepLen)), weapons(Weapons),
-			write("List Suspect Names (13 Characters max).\nList cards within [] and separated by commas. \n"),
+			write("List Suspect Names.\nList cards within [] and separated by commas. \n"),
             read(Suspects), length(Suspects, SusLen), assert(numSuspects(SusLen)), suspects(Suspects),
-			write("List Room Names (13 Characters max).\nList cards within [] and separated by commas. \n"),
+      write("List Weapons.\nList cards within [] and separated by commas.\n"),
+            read(Weapons), length(Weapons, WepLen), assert(numWeapons(WepLen)), weapons(Weapons),
+			write("List Room Names.\nList cards within [] and separated by commas. \n"),
             read(Rooms), length(Rooms, RoomLen), assert(numRooms(RoomLen)), rooms(Rooms)),
     bagof(A,suspect(A),TotSuspects),bagof(B,weapon(B),TotWeapons), bagof(Z,room(Z),TotRooms),
     assert(allSuspects(TotSuspects)), assert(allWeapons(TotWeapons)), assert(allRooms(TotRooms)),
@@ -64,6 +64,12 @@ notYours([]).
 notYours([H|T]) :- valid(H,Type),assert(doesNotOwn(H,Type,1)), notYours(T).
 
 %checks if card is valid and adds it to our current database
+%inputCards([H]) :- weapon(H), assert(not(H, weapon, 1)), doesNotHave(H,weapon,2).
+%inputCards([H]) :- suspect(H), assert(not(H, suspect, 1)),doesNotHave(H,suspect,2).
+%inputCards([H]) :- room(H), assert(not(H, room, 1)), doesNotHave(H,room,2).
+%inputCards([H|T]) :- weapon(H),assert(not(H, weapon, 1)),doesNotHave(H,weapon,2),inputCards(T).
+%inputCards([H|T]) :- suspect(H),assert(not(H, suspect, 1)),doesNotHave(H,suspect,2),inputCards(T).
+%inputCards([H|T]) :- room(H),assert(not(H, room, 1)),doesNotHave(H,room,2),inputCards(T).
 inputCards([]).
 inputCards([H|T]) :- valid(H,Type),assert(not(H, Type, 1)),doesNotHave(H,Type,2),inputCards(T).
 inputCards([H|_T]) :- format("~w is not a card. Try Again.\n", H),
@@ -72,7 +78,7 @@ inputCards([H|_T]) :- format("~w is not a card. Try Again.\n", H),
 %console for actions
 play :- (checkWin -> bagof(A,right(A),Z),format("SUGGEST THE FOLLOWING: ~w ~w ~w\n",Z),abort;true),
 		    write("\nPlease choose a number :\n 1. View notebook \n 2. Record your move \n"),
-        write(" 3. Record other players move \n 4. Give suggestion \n 5. Quit\n"),
+        write(" 3. Record other player's move \n 4. Give suggestion \n 5. Quit\n"),
         read(X), choice(X).
 
 %possible choices
