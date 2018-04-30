@@ -96,9 +96,9 @@ choice(5) :- abort.
 suggestions :- getSuspect(Suspect), getWeapon(Weapon), getRoom(Room),
 			   format("\nYou should suggest ~w in the ~w with the ~w.\n\n",[Suspect,Room,Weapon]), sleep(1).
 
-getSuspect(Suspect) :- unknownSuspects(Suspects), length(Suspects,SusLen), random(0,SusLen,SIndex), nth0(SIndex,Suspects,Suspect).
-getWeapon(Weapon) :- unknownWeapons(Weapons),length(Weapons,WepLen), random(0,WepLen,WIndex), nth0(WIndex,Weapons,Weapon).
-getRoom(Room) :- unknownRooms(Rooms),length(Rooms,RoomLen), random(0,RoomLen,RIndex), nth0(RIndex,Rooms,Room).
+getSuspect(Suspect) :- (right(Suspect,suspect) -> true; unknownSuspects(Suspects), length(Suspects,SusLen), random(0,SusLen,SIndex), nth0(SIndex,Suspects,Suspect)).
+getWeapon(Weapon) :- (right(Weapon,weapon) -> true;unknownWeapons(Weapons),length(Weapons,WepLen), random(0,WepLen,WIndex), nth0(WIndex,Weapons,Weapon)).
+getRoom(Room) :- (right(Room,room) -> true;unknownRooms(Rooms),length(Rooms,RoomLen), random(0,RoomLen,RIndex), nth0(RIndex,Rooms,Room)).
 
 %record your move and recording it
 yourMove :- write("What did you ask to see from "), player(X,2), write(X), write("?\n"),
