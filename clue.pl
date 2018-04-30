@@ -235,8 +235,11 @@ checkWin :- retractall(right(_,_)),
 			(countTheX(A3,suspect);countTheX(A1,weapon);countTheX(A2,room)).
 
 countTheX([]) :- false.
-countTheX([H|T],Type) :- findall(X,doesNotOwn(H,_,X),List), numPlayers(Num), sort(List,NoDupes), % sort gets rid of duplicates just in case
-                            (length(NoDupes,Num) -> assert(right(H,)); countTheX(T,Type)).
+% recurse through list of Suspects/Weapons/Rooms (H) and counts how many X's there are
+% if number of X's matches the number of players, we know that is the right answer
+% the sort is to remove repeated asserts (should not happen, but just in case)
+countTheX([H|T],Type) :- findall(X,doesNotOwn(H,_,X),List), numPlayers(Num), sort(List,NoDupes),
+                            (length(NoDupes,Num) -> assert(right(H,Type)); countTheX(T,Type)).
 
 
 checkMaybes :- forall(weapon(A), elimMaybes(A)),
