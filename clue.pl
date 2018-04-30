@@ -27,14 +27,18 @@ clue :- reset,
             read(Rooms), length(Rooms, RoomLen), assert(numRooms(RoomLen)), rooms(Rooms)),
     bagof(A,suspect(A),TotSuspects),bagof(B,weapon(B),TotWeapons), bagof(Z,room(Z),TotRooms),
     assert(allSuspects(TotSuspects)), assert(allWeapons(TotWeapons)), assert(allRooms(TotRooms)),
-		playerCards,!, play.
+		playerCards,!,findall(MySuspect,not(MySuspect,suspect,1),MySuspects),assert(mySuspectList(MySuspects)),
+    findall(MyWeapon,not(MyWeapon,weapon,1),MyWeapons),assert(myWeaponList(MySuspects)),
+    findall(MyRoom,not(MyRoom,room,1),MyRooms),assert(myRoomList(MyRooms)),
+     play.
 
 reset :- retractall(weapon(_)), retractall(room(_)), retractall(player(_,_)), retractall(right(_,_)),
 		     retractall(suspect(_)), retractall(not(_,_,_)), retractall(doesNotOwn(_,_, _)),
 		     retractall(unknownRooms(_)),retractall(unknownSuspects(_)),retractall(unknownWeapons(_)),
 		     retractall(numWeapons(_)), retractall(numSuspects(_)), retractall(numRooms(_)),
 		     retractall(maybeCount(_,_,_)), retractall(shown(_,_)),retractall(allSuspects(_)),
-         retractall(allWeapons(_)),retractall(allRooms(_)), retractall(numPlayers(_)).
+         retractall(allWeapons(_)),retractall(allRooms(_)), retractall(numPlayers(_)),
+         retractall(myWeaponList(_)), retractall(mySuspectList(_)), retractall(myRoomList(_)).
 
 %checks for valid number of players
 validNum(3).
@@ -96,7 +100,9 @@ choice(5) :- abort.
 suggestions :- getSuspect(Suspect), getWeapon(Weapon), getRoom(Room),
 			   format("\nYou should suggest ~w in the ~w with the ~w.\n\n",[Suspect,Room,Weapon]), sleep(1).
 
-getSuspect(Suspect) :- (right(Suspect,suspect) -> true; unknownSuspects(Suspects), length(Suspects,SusLen), random(0,SusLen,SIndex), nth0(SIndex,Suspects,Suspect)).
+getSuspect(Suspect) :- (right(RightSuspect,suspect) ->
+                          append([RightSuspect], )
+                          unknownSuspects(Suspects), length(Suspects,SusLen), random(0,SusLen,SIndex), nth0(SIndex,Suspects,Suspect)).
 getWeapon(Weapon) :- (right(Weapon,weapon) -> true;unknownWeapons(Weapons),length(Weapons,WepLen), random(0,WepLen,WIndex), nth0(WIndex,Weapons,Weapon)).
 getRoom(Room) :- (right(Room,room) -> true;unknownRooms(Rooms),length(Rooms,RoomLen), random(0,RoomLen,RIndex), nth0(RIndex,Rooms,Room)).
 
