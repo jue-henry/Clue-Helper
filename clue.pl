@@ -1,6 +1,6 @@
 % Programmers:
-% 	Va Vong 	- 912673787
-%	Henry Jue 	- 913037267
+% Va Vong 	   - 912673787
+%	Henry Jue 	 - 913037267
 
 %start game setup
 clue :- reset,
@@ -27,8 +27,9 @@ clue :- reset,
             read(Rooms), length(Rooms, RoomLen), assert(numRooms(RoomLen)), rooms(Rooms)),
     bagof(A,suspect(A),TotSuspects),bagof(B,weapon(B),TotWeapons), bagof(Z,room(Z),TotRooms),
     assert(allSuspects(TotSuspects)), assert(allWeapons(TotWeapons)), assert(allRooms(TotRooms)),
-		playerCards,!,findall(MySuspect,not(MySuspect,suspect,1),MySuspects),assert(mySuspectList(MySuspects)),
-    findall(MyWeapon,not(MyWeapon,weapon,1),MyWeapons),assert(myWeaponList(MySuspects)),
+		playerCards,!,
+    findall(MySuspect,not(MySuspect,suspect,1),MySuspects),assert(mySuspectList(MySuspects)),
+    findall(MyWeapon,not(MyWeapon,weapon,1),MyWeapons),assert(myWeaponList(MyWeapons)),
     findall(MyRoom,not(MyRoom,room,1),MyRooms),assert(myRoomList(MyRooms)),
      play.
 
@@ -82,7 +83,7 @@ inputCards([H|_T]) :- format("~w is not a card. Try Again.\n", H),
 				              retractall(not(_,_,_)), retractall(doesNotOwn(_,_,_)), playerCards.
 
 %console for actions
-play :- (checkWin -> bagof(A,right(A),Z),format("SUGGEST THE FOLLOWING: ~w ~w ~w\n",Z),abort;true),
+play :- (checkWin -> bagof(A,right(A,_),Z),format("SUGGEST THE FOLLOWING: ~w ~w ~w\n",Z),abort;true),
 		(checkMaybes;true),
 		 write("\nPlease choose a number :\n 1. View notebook \n 2. Record your move \n"),
         write(" 3. Record other players move \n 4. Give suggestion \n 5. Quit\n"),
@@ -97,14 +98,23 @@ choice(4) :- suggestions, play.
 choice(5) :- abort.
 
 % give a suggestion
+% if a certain category's answer is known, the pool of suggestions for that category is YourCards + RightAnswer
+% else, it picks a random item from the unknowns in that category
 suggestions :- getSuspect(Suspect), getWeapon(Weapon), getRoom(Room),
 			   format("\nYou should suggest ~w in the ~w with the ~w.\n\n",[Suspect,Room,Weapon]), sleep(1).
 
 getSuspect(Suspect) :- (right(RightSuspect,suspect) ->
-                          append([RightSuspect], )
-                          unknownSuspects(Suspects), length(Suspects,SusLen), random(0,SusLen,SIndex), nth0(SIndex,Suspects,Suspect)).
-getWeapon(Weapon) :- (right(Weapon,weapon) -> true;unknownWeapons(Weapons),length(Weapons,WepLen), random(0,WepLen,WIndex), nth0(WIndex,Weapons,Weapon)).
-getRoom(Room) :- (right(Room,room) -> true;unknownRooms(Rooms),length(Rooms,RoomLen), random(0,RoomLen,RIndex), nth0(RIndex,Rooms,Room)).
+                          mySuspectList(List),append([RightSuspect], List,Suspects);
+                          unknownSuspects(Suspects)),
+                       length(Suspects,SusLen), random(0,SusLen,SIndex), nth0(SIndex,Suspects,Suspect).
+getWeapon(Weapon) :- (right(RightWeapon,weapon) ->
+                        myWeaponList(List),append([RightWeapon],List,Weapons);
+                        unknownWeapons(Weapons)),
+                     length(Weapons,WepLen), random(0,WepLen,WIndex), nth0(WIndex,Weapons,Weapon).
+getRoom(Room) :- (right(RightRoom,room) ->
+                    myRoomList(List),append([RightRoom],List,Rooms);
+                    unknownRooms(Rooms)),
+                 length(Rooms,RoomLen), random(0,RoomLen,RIndex), nth0(RIndex,Rooms,Room).
 
 %record your move and recording it
 yourMove :- write("What did you ask to see from "), player(X,2), write(X), write("?\n"),
@@ -238,7 +248,7 @@ checkWin :- retractall(right(_,_)),
 			(length(New1,1) -> New1 = [LastWeapon],assert(right(LastWeapon,weapon)); true),
       (length(New2,1) -> New2 = [LastRoom],assert(right(LastRoom,room)); true),
       (length(New3,1) -> New3 = [LastSus],assert(right(LastSus,suspect)); true),
-			(countTheX(A3,suspect);countTheX(A1,weapon);countTheX(A2,room)).
+			(countTheX(A3,suspect);true),(countTheX(A1,weapon);true),countTheX(A2,room).
 
 countTheX([]) :- false.
 % recurse through list of Suspects/Weapons/Rooms (H) and counts how many X's there are
