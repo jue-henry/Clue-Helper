@@ -6,7 +6,7 @@
 clue :- reset,
         write("All input must begin with lowercase letters and end with a period.\n"),
 		    write("Number of players (3-6)? "), read(Num), validNum(Num), assert(numPlayers(Num)),
-		    write("List Player Names within [] and seperated by commas (lowercase only) \n"),
+		    write("List Player Names starting with you in order of turns within [] and seperated by commas (lowercase only) \n"),
         read(Players),
         (length(Players,Num) -> players(Players,1); write("Incorrect number of names.\n\n"),clue),
 		write("Is this the default version of clue(yes/no)? \n"), read(Default),
@@ -19,11 +19,11 @@ clue :- reset,
 			assert(room(dining_room)), assert(room(billiard_room)), assert(room(library)),
 			assert(room(lounge)), assert(room(hall)), assert(room(study)),printNotebook,
             assert(numWeapons(6)), assert(numSuspects(6)), assert(numRooms(9));
-			write("List Weapons (13 Characters max).\nList cards within [] and separated by commas.\n"),
-            read(Weapons), length(Weapons, WepLen), assert(numWeapons(WepLen)), weapons(Weapons),
-			write("List Suspect Names (13 Characters max).\nList cards within [] and separated by commas. \n"),
+			write("List Suspect Names.\nList cards within [] and separated by commas. \n"),
             read(Suspects), length(Suspects, SusLen), assert(numSuspects(SusLen)), suspects(Suspects),
-			write("List Room Names (13 Characters max).\nList cards within [] and separated by commas. \n"),
+     write("List Weapons.\nList cards within [] and separated by commas.\n"),
+            read(Weapons), length(Weapons, WepLen), assert(numWeapons(WepLen)), weapons(Weapons),
+			write("List Room Names.\nList cards within [] and separated by commas. \n"),
             read(Rooms), length(Rooms, RoomLen), assert(numRooms(RoomLen)), rooms(Rooms)),
     bagof(A,suspect(A),TotSuspects),bagof(B,weapon(B),TotWeapons), bagof(Z,room(Z),TotRooms),
     assert(allSuspects(TotSuspects)), assert(allWeapons(TotWeapons)), assert(allRooms(TotRooms)),
@@ -83,7 +83,7 @@ inputCards([H|_T]) :- format("~w is not a card. Try Again.\n", H),
 				              retractall(not(_,_,_)), retractall(doesNotOwn(_,_,_)), playerCards.
 
 %console for actions
-play :- (checkWin -> bagof(A,right(A,_),Z),format("SUGGEST THE FOLLOWING: ~w ~w ~w\n",Z),abort;true),
+play :- (checkWin -> findall(A,right(A,_),Z),format("SUGGEST THE FOLLOWING: ~w ~w ~w\n",Z),abort;true),
 		(checkMaybes;true),
 		 write("\nPlease choose a number :\n 1. View notebook \n 2. Record your move \n"),
         write(" 3. Record other players move \n 4. Give suggestion \n 5. Quit\n"),
@@ -118,14 +118,16 @@ getRoom(Room) :- (right(RightRoom,room) ->
 
 %record your move and recording it
 yourMove :- write("What did you ask to see from "), player(X,2), write(X), write("?\n"),
-            write("Suspect? "), read(S), write("Weapon? "), read(W),
-			      write("Room? "), read(R),room(R), weapon(W), suspect(S), write("Do they have it? (yes/no) "),
+            write("Suspect? "), read(S),
+            write("Weapon? "), read(W),
+			      write("Room? "), read(R),
+            room(R), weapon(W), suspect(S), write("Do they have it? (yes/no) "),
             read(Answer), have(Answer,[S,W,R],2).
 
 %when the player you asked has one of the three cards
 have(yes, List, PlayerNum) :- write("What card was it?"), read(Card), member(Card, List), valid(Card,Type),
 							  assert(not(Card,Type,PlayerNum)), NextPlayer is PlayerNum + 1,
-							  crossExtras(Card, Type,PlayerNum, NextPlayer), play.
+							  crossExtras(Card, Type,PlayerNum, NextPlayer).
 
 %when the player you asked does not have one of the three cards
 have(no, [S,W,R], PlayerNum) :- Next is PlayerNum+1,
@@ -134,7 +136,7 @@ have(no, [S,W,R], PlayerNum) :- Next is PlayerNum+1,
 								(doesNotOwn(S,suspect,PlayerNum) -> true; assert(doesNotOwn(S,suspect,PlayerNum))),
 								(player(X, Next) -> write("Does "), write(X),
 								write(" have it?"), read(NewAnswer), have(NewAnswer, [W,R,S], Next);
-								write("No one has these three cards. \n\n"), play).
+								write("No one has these three cards. \n\n")).
 
 
 %asserts the cards that are not owned by the other players when shwon a card
