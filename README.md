@@ -21,12 +21,9 @@
     Finally, the last possible choice is to quit the prompt, however this does not quit the current game. The game can be returned to simply by inputting the "play." command, and the user console will return to the screen. To start a new game, simply use the "clue." command again, and all previous information will be removed from the notebook.
 
 ###Additional Features
-    There is an invisible feature for the notepad. If non-player-character1(NPC1) asked NPC2 for something and is shown a card, our program marks NPC2's notepad (invisibally) with a "maybe" for all three cards. If at any point 2/3 of the "maybe"s for a certain turn is eliminated (this is done automatically if an X occupies the same location as a "maybe"), the program will automatically check that last "maybe" as a "known".
-    
-    
+    There is an invisible feature for the notepad. If non-player-character1(NPC1) asked NPC2 for something and is shown a card, our program marks NPC2's notepad (invisibally) with a "maybe" for all three cards. If at any point 2/3 of the "maybe"s for a certain turn is eliminated (this is done automatically if an X occupies the same location as a "maybe"), the program will automatically check that last "maybe" as a "known".    
     When somebody asks you for a card, the program first checks if you have shown that person a card before. If yes, then it recommends you show that same card. If you haven't, it then checks whether or not you've shown ANY of the 3 cards before. If yes, it recommends that card. If not, it will recommend you show any card in the order of Suspect->Weapon->Room, since Room is the most valuable.
 
 ###Bugs and Missing Features:
     Much of the program requires that the user inputs correct options. but if the program does crash due to improper input, simply input the "play." command, and you will be returned to the main menu to continue playing. At times, you may have incorrect database entries, but it's chill bro.
-    
     Any dumb inputs will likely crash our program. It can tolerate 3 +- 1 instances of this. After that, it's fair game. You've been warned.
